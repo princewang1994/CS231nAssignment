@@ -36,8 +36,9 @@ class ThreeLayerConvNet(object):
     self.params = {}
     self.reg = reg
     self.dtype = dtype
-    
+
     ############################################################################
+
     # TODO: Initialize weights and biases for the three-layer convolutional    #
     # network. Weights should be initialized from a Gaussian with standard     #
     # deviation equal to weight_scale; biases should be initialized to zero.   #
@@ -47,7 +48,17 @@ class ThreeLayerConvNet(object):
     # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
     # of the output affine layer.                                              #
     ############################################################################
-    pass
+    C, H, W = input_dim
+    # conv_out_size = H
+    pool_out_size = H / 2
+    W1, b1 = np.random.normal(0, weight_scale, (num_filters, C, filter_size, filter_size)), np.zeros(num_filters)
+    W2, b2 = np.random.normal(0, weight_scale, (num_filters * pool_out_size * pool_out_size, hidden_dim)), np.zeros(hidden_dim)
+    W3, b3 = np.random.normal(0, weight_scale, (hidden_dim, num_classes)), np.zeros(num_classes)
+
+    self.params['W1'], self.params['b1'] = W1, b1
+    self.params['W2'], self.params['b2'] = W2, b2
+    self.params['W3'], self.params['b3'] = W3, b3
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -65,7 +76,8 @@ class ThreeLayerConvNet(object):
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
     W3, b3 = self.params['W3'], self.params['b3']
-    
+
+    # print self.params.keys()
     # pass conv_param to the forward pass for the convolutional layer
     filter_size = W1.shape[2]
     conv_param = {'stride': 1, 'pad': (filter_size - 1) / 2}
@@ -74,19 +86,27 @@ class ThreeLayerConvNet(object):
     pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
 
     scores = None
+
     ############################################################################
     # TODO: Implement the forward pass for the three-layer convolutional net,  #
     # computing the class scores for X and storing them in the scores          #
     # variable.                                                                #
     ############################################################################
-    pass
+
+    conv_out, conv_cache = conv_forward_im2col(X, W1, b1, conv_param)
+    relu1_out, relu1_cache = relu_forward(conv_out)
+    pool_out, pool_cache = max_pool_forward_fast(relu1_out, pool_param)
+    hidden_out, hidden_cache = affine_relu_forward(pool_out, W2, b2)
+    scores, score_cache = affine_forward(hidden_out, W3, b3)
+
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
-    
+
     if y is None:
       return scores
-    
+
     loss, grads = 0, {}
     ############################################################################
     # TODO: Implement the backward pass for the three-layer convolutional net, #
@@ -94,11 +114,25 @@ class ThreeLayerConvNet(object):
     # data loss using softmax, and make sure that grads[k] holds the gradients #
     # for self.params[k]. Don't forget to add L2 regularization!               #
     ############################################################################
-    pass
+
+    data_loss, dout = softmax_loss(scores, y)
+    reg_loss = 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(W3 * W3))
+    loss = data_loss + reg_loss
+
+    dout, dW3, dB3 = affine_backward(dout, score_cache)
+    dout, dW2, dB2 = affine_relu_backward(dout, hidden_cache)
+    dout = max_pool_backward_fast(dout, pool_cache)
+    dout = relu_backward(dout, relu1_cache)
+    dout, dW1, dB1 = conv_backward_im2col(dout, conv_cache)
+
+    grads['W1'], grads['b1'] = dW1 + self.reg * W1, dB1
+    grads['W2'], grads['b2'] = dW2 + self.reg * W2, dB2
+    grads['W3'], grads['b3'] = dW3 + self.reg * W3, dB3
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
-    
+
     return loss, grads
   
   

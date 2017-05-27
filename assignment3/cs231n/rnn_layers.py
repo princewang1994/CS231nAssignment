@@ -103,7 +103,7 @@ def rnn_forward(x, h0, Wx, Wh, b):
   ##############################################################################
   N, T, D = x.shape
   H = h0.shape[1]
-  h = np.zeros((N, T, H), dtype=np.float32)
+  h = np.zeros((N, T, H))
   cache = []
   for i in range(T):
     if i == 0:
